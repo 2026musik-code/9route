@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 
 type Bindings = {
   Apimini: any; // KVNamespace
+  ASSETS: any; // Fetcher
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -243,6 +244,16 @@ api.post('/v1/chat/completions', async (c) => {
   } catch (error: any) {
     console.error("Proxy Error:", error);
     return c.json({ error: "Internal Server Error proxying request" }, 500);
+  }
+});
+
+// React SPA Fallback: Any route not matching /api/* should serve index.html
+app.get('*', async (c) => {
+  // Try to fetch the index.html from the ASSETS binding
+  try {
+     return await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url), c.req.raw));
+  } catch (e) {
+     return c.text('Not Found', 404);
   }
 });
 

@@ -19,6 +19,13 @@ export default function AdminView() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editLimit, setEditLimit] = useState<number>(0);
 
+  const apiFetch = async (url: string, options: any = {}) => {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = user?.token || '';
+      const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+      return fetch(url, { ...options, headers });
+  };
+
   useEffect(() => {
     if (activeTab === 'models') {
       fetchModels();
@@ -33,7 +40,7 @@ export default function AdminView() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/v1/users');
+      const res = await apiFetch('/api/v1/users');
       const data = await res.json();
       if (data && data.success) setUsers(data.data);
     } catch (e) {
@@ -43,7 +50,7 @@ export default function AdminView() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/v1/settings');
+      const res = await apiFetch('/api/v1/settings');
       const data = await res.json();
       if (data && data.success) setSettings(data.data);
     } catch (e) {
@@ -53,7 +60,7 @@ export default function AdminView() {
 
   const updateSettings = async () => {
     try {
-      const res = await fetch('/api/v1/settings', {
+      const res = await apiFetch('/api/v1/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
@@ -70,7 +77,7 @@ export default function AdminView() {
   const handleSaveUserLimit = async () => {
     if (!editingUser) return;
     try {
-      const res = await fetch(`/api/v1/users/${editingUser.id}`, {
+      const res = await apiFetch(`/api/v1/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rpdLimit: editLimit })
@@ -87,7 +94,7 @@ export default function AdminView() {
 
   const fetchEndpoints = async () => {
     try {
-      const res = await fetch('/api/v1/endpoints');
+      const res = await apiFetch('/api/v1/endpoints');
       const data = await res.json();
       if (data && data.data) {
         setEndpoints(data.data);
@@ -99,7 +106,7 @@ export default function AdminView() {
 
   const deleteEndpoint = async (id: string) => {
     try {
-      await fetch(`/api/v1/endpoints/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/v1/endpoints/${id}`, { method: 'DELETE' });
       setEndpoints(endpoints.filter(e => e.id !== id));
     } catch (e) {
       console.error(e);
@@ -113,7 +120,7 @@ export default function AdminView() {
     const description = window.prompt("Description:");
 
     try {
-      const res = await fetch('/api/v1/endpoints', {
+      const res = await apiFetch('/api/v1/endpoints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path, method: method.toUpperCase(), description })
@@ -130,7 +137,7 @@ export default function AdminView() {
   const fetchModels = async () => {
     setLoadingModels(true);
     try {
-      const res = await fetch('/api/v1/models');
+      const res = await apiFetch('/api/v1/models');
       const data = await res.json();
       if (data && data.data) {
         setModels(data.data);
@@ -143,7 +150,7 @@ export default function AdminView() {
 
   const deleteModel = async (id: string) => {
     try {
-      await fetch(`/api/v1/models/entry?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await apiFetch(`/api/v1/models/entry?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setModels(models.filter(m => m.id !== id));
     } catch (e) {
       console.error(e);
@@ -156,7 +163,7 @@ export default function AdminView() {
     const owned_by = window.prompt("Owned By (e.g. gc, ag, kc):") || "custom";
 
     try {
-      const res = await fetch('/api/v1/models', {
+      const res = await apiFetch('/api/v1/models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, owned_by })

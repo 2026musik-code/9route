@@ -36,6 +36,14 @@ const TARGET_URL = "https://api.cloudflaremini.biz.id/v1/chat/completions";
 
 const api = app.basePath('/api');
 
+const adminAuth = async (c: any, next: any) => {
+    const authHeader = c.req.header('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer admin_token_')) {
+        return c.json({ error: "Unauthorized: Admin access required" }, 401);
+    }
+    await next();
+};
+
 // --- Models ---
 api.get('/v1/models', async (c) => {
   let modelsCache = await getKV(c, 'models', []);
@@ -56,7 +64,7 @@ api.get('/v1/models', async (c) => {
   return c.json({ object: "list", data: modelsCache });
 });
 
-api.delete('/v1/models/entry', async (c) => {
+api.delete('/v1/models/entry', adminAuth, async (c) => {
   const id = c.req.query('id');
   if (!id) return c.json({ error: "No ID provided" }, 400);
   let modelsCache = await getKV(c, 'models', []);
@@ -65,7 +73,7 @@ api.delete('/v1/models/entry', async (c) => {
   return c.json({ success: true, deleted: id });
 });
 
-api.post('/v1/models', async (c) => {
+api.post('/v1/models', adminAuth, async (c) => {
   const { id, owned_by } = await c.req.json();
   if (!id || !owned_by) return c.json({ error: "Missing fields" }, 400);
   let modelsCache = await getKV(c, 'models', []);
@@ -80,7 +88,7 @@ api.get('/v1/endpoints', async (c) => {
     const eps = await getKV(c, 'endpoints', [{ id: "ep-1", method: "POST", path: "/api/v1/chat/completions" }]);
     return c.json({ data: eps });
 });
-api.post('/v1/endpoints', async (c) => {
+api.post('/v1/endpoints', adminAuth, async (c) => {
     let eps = await getKV(c, 'endpoints', []);
     const { method, path, description } = await c.req.json();
     const newEndpoint = { id: "ep-" + Date.now(), method: method.toUpperCase(), path, description: description || "" };
@@ -88,7 +96,7 @@ api.post('/v1/endpoints', async (c) => {
     await putKV(c, 'endpoints', eps);
     return c.json({ success: true, data: newEndpoint });
 });
-api.delete('/v1/endpoints/:id', async (c) => {
+api.delete('/v1/endpoints/:id', adminAuth, async (c) => {
     const id = c.req.param('id');
     let eps = await getKV(c, 'endpoints', []);
     eps = eps.filter((e: any) => e.id !== id);
@@ -97,11 +105,11 @@ api.delete('/v1/endpoints/:id', async (c) => {
 });
 
 // --- Settings ---
-api.get('/v1/settings', async (c) => {
+api.get('/v1/settings', adminAuth, async (c) => {
     const settings = await getKV(c, 'settings', { rpm: 60, rpd: 50000, enforceApiKey: true, logRequests: true });
     return c.json({ success: true, data: settings });
 });
-api.post('/v1/settings', async (c) => {
+api.post('/v1/settings', adminAuth, async (c) => {
     let settings = await getKV(c, 'settings', { rpm: 60, rpd: 50000, enforceApiKey: true, logRequests: true });
     const body = await c.req.json();
     settings = { ...settings, ...body };
@@ -110,11 +118,11 @@ api.post('/v1/settings', async (c) => {
 });
 
 // --- Users ---
-api.get('/v1/users', async (c) => {
+api.get('/v1/users', adminAuth, async (c) => {
     const users = await getKV(c, 'users', [{ id: '1', name: "Dedi Supriadi", email: "ceodedi@gmail.com", role: "Admin", plan: "Pro", rpdLimit: 50000 }]);
     return c.json({ success: true, data: users });
 });
-api.put('/v1/users/:id', async (c) => {
+api.put('/v1/users/:id', adminAuth, async (c) => {
     const id = c.req.param('id');
     let users = await getKV(c, 'users', []);
     const body = await c.req.json();
@@ -274,7 +282,7 @@ api.post('/v1/auth/admin', async (c) => {
             user.role = 'Admin';
             await putKV(c, 'users', users);
         }
-        return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+        return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, token: `admin_token_${user.id}` } });
     } else {
         return c.json({ error: "Email atau PIN tidak valid" }, 401);
     }

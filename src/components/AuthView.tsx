@@ -2,22 +2,39 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock, Mail, Users, ArrowRight, Github } from 'lucide-react';
 
-export default function AuthView({ onLogin }: { onLogin: () => void }) {
+export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) {
   const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate network delay
-    setTimeout(() => {
-      setLoading(false);
-      onLogin(); // Proceed to dashboard
-    }, 1000);
+    setErrorMsg('');
+    try {
+      const endpoint = isLogin ? '/api/v1/auth/login' : '/api/v1/auth/register';
+      const body = isLogin ? { email, password } : { name, email, password };
+      
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        onLogin(data.user);
+      } else {
+        setErrorMsg(data.error || 'Authentication failed');
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Network error');
+    }
+    setLoading(false);
   };
 
   return (

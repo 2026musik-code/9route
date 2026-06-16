@@ -7,12 +7,21 @@ export default function ProfileView() {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/v1/profile').then(res => res.json()).then(data => {
+    const userStr = localStorage.getItem('user');
+    const userId = userStr ? JSON.parse(userStr).id : '1';
+    fetch('/api/v1/profile', {
+      headers: { 'x-user-id': userId }
+    }).then(res => res.json()).then(data => {
       if(data && data.success) {
         setProfile(data.data);
       }
     }).catch(e => console.error(e));
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.reload();
+  };
 
   if (!profile) return <div className="p-8 text-slate-500 animate-pulse">Loading profile...</div>;
 

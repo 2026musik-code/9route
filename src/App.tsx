@@ -26,7 +26,11 @@ function MainLayout() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch('/api/dashboard');
+      const userStr = localStorage.getItem('user');
+      const userId = userStr ? JSON.parse(userStr).id : '1';
+      const res = await fetch('/api/dashboard', {
+          headers: { 'x-user-id': userId }
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success) setData(json.data);
@@ -244,10 +248,17 @@ function AdminLayout() {
 }
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('user');
+  });
+
+  const handleLogin = (user: any) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    setIsAuthenticated(true);
+  };
 
   if (!isAuthenticated) {
-    return <AuthView onLogin={() => setIsAuthenticated(true)} />;
+    return <AuthView onLogin={handleLogin} />;
   }
 
   return (

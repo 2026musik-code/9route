@@ -44,7 +44,10 @@ export default function ApiKeysView() {
       }
     }).catch(e => console.error(e));
 
-    fetch('/api/v1/apikeys').then(res => res.json()).then(data => {
+    const userStr = localStorage.getItem('user');
+    const userId = userStr ? JSON.parse(userStr).id : '1';
+    
+    fetch('/api/v1/apikeys', { headers: { 'x-user-id': userId } }).then(res => res.json()).then(data => {
       if(data && data.data) {
         setKeys(data.data);
       }
@@ -54,10 +57,12 @@ export default function ApiKeysView() {
   const handleGenerate = async () => {
     if (!newKeyName.trim()) return;
     try {
+      const userStr = localStorage.getItem('user');
+      const userId = userStr ? JSON.parse(userStr).id : '1';
       const res = await fetch('/api/v1/apikeys', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim() })
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        body: JSON.stringify({ name: newKeyName.trim(), userId })
       });
       const data = await res.json();
       if (data.success && data.data) {

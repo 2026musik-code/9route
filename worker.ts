@@ -132,10 +132,55 @@ api.put('/v1/users/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// --- Auth ---
+api.post('/v1/auth/register', async (c) => {
+    const { name, email, password } = await c.req.json();
+    if (!name || !email || !password) return c.json({ error: "Missing fields" }, 400);
+
+    let users = await getKV(c, 'users', []);
+    
+    if (users.find((u: any) => u.email === email)) {
+        return c.json({ error: "User already exists" }, 400);
+    }
+    
+    const newUser = {
+        id: Date.now().toString(),
+        name,
+        email,
+        password, // In a real app, hash this!
+        role: email === 'ceodedi@gmail.com' ? 'Admin' : 'User',
+        plan: 'Free',
+        rpdLimit: 50000,
+        joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    };
+    
+    users.push(newUser);
+    await putKV(c, 'users', users);
+    
+    return c.json({ success: true, user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } });
+});
+
+api.post('/v1/auth/login', async (c) => {
+    const { email, password } = await c.req.json();
+    if (!email || !password) return c.json({ error: "Missing fields" }, 400);
+
+    let users = await getKV(c, 'users', []);
+    
+    const user = users.find((u: any) => u.email === email && u.password === password);
+    
+    if (!user) {
+        return c.json({ error: "Invalid credentials" }, 401);
+    }
+    
+    return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+});
+
 // --- API Keys ---
 api.get('/v1/apikeys', async (c) => {
-    const keys = await getKV(c, 'apikeys', [{ id: '1', userId: '1', name: 'Production Key', key: 'sk-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', createdDate: '2023-10-01', lastUsed: '2 mins ago' }]);
-    return c.json({ success: true, data: keys });
+    const userId = c.req.header('x-user-id') || '1';
+    const keys = await getKV(c, 'apikeys', []);
+    const userKeys = keys.filter((k: any) => k.userId === userId);
+    return c.json({ success: true, data: userKeys });
 });
 api.post('/v1/apikeys', async (c) => {
     const { name, userId } = await c.req.json(); 
@@ -162,12 +207,15 @@ api.delete('/v1/apikeys/:id', async (c) => {
 
 // --- Profile & Dashboard ---
 api.get('/v1/profile', async (c) => {
+    const userId = c.req.header('x-user-id');
     const users = await getKV(c, 'users', [{ id: '1', name: "Dedi Supriadi", email: "ceodedi@gmail.com", role: "Admin", plan: "Pro", joinedDate: "October 15, 2023" }]);
-    return c.json({ success: true, data: users[0] || users[0] });
+    const user = users.find((u: any) => u.id === userId) || users[0];
+    return c.json({ success: true, data: user });
 });
 
 api.get('/dashboard', async (c) => {
-    const quota = await getKV(c, 'quota_1', { used: 12450, totalLimit: 50000, history: [{ date: '2023-10-01', tokens: 1200 }], logs: [] });
+    const userId = c.req.header('x-user-id') || '1';
+    const quota = await getKV(c, `quota_${userId}`, { used: 0, totalLimit: 50000, history: [], logs: [] });
     return c.json({ success: true, data: quota });
 });
 

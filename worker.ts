@@ -6,6 +6,8 @@ type Bindings = {
   ASSETS: any; // Fetcher
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  ADMIN_EMAIL?: string;
+  ADMIN_PIN?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -240,6 +242,37 @@ api.get('/v1/auth/github/callback', async (c) => {
         `);
     } catch (e) {
         return c.text('OAuth callback error', 500);
+    }
+});
+
+api.post('/v1/auth/admin', async (c) => {
+    const { email, pin } = await c.req.json();
+    const ADMIN_PIN = c.env.ADMIN_PIN || '123456';
+    const ADMIN_EMAIL = c.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+
+    if (email === ADMIN_EMAIL && pin === ADMIN_PIN) {
+        let users = await getKV(c, 'users', []);
+        let user = users.find((u: any) => u.email === email);
+        if (!user) {
+            user = {
+                id: Date.now().toString(),
+                name: "Administrator",
+                email: email,
+                password: 'admin-password',
+                role: 'Admin',
+                plan: 'Pro',
+                rpdLimit: 999999,
+                joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            };
+            users.push(user);
+            await putKV(c, 'users', users);
+        } else {
+            user.role = 'Admin';
+            await putKV(c, 'users', users);
+        }
+        return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    } else {
+        return c.json({ error: "Email atau PIN tidak valid" }, 401);
     }
 });
 

@@ -228,6 +228,34 @@ async function startServer() {
     }
   });
 
+  app.post("/api/v1/auth/admin", express.json(), (req, res) => {
+    const { email, pin } = req.body;
+    const ADMIN_PIN = process.env.ADMIN_PIN || '123456';
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+
+    if (email === ADMIN_EMAIL && pin === ADMIN_PIN) {
+        let user = usersState.find((u: any) => u.email === email);
+        if (!user) {
+            user = {
+                id: Date.now().toString(),
+                name: "Administrator",
+                email: email,
+                password: 'admin-password',
+                role: 'Admin',
+                plan: 'Pro',
+                rpdLimit: 999999,
+                joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            } as any;
+            usersState.push(user as any);
+        } else {
+            user.role = 'Admin';
+        }
+        res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    } else {
+        res.status(401).json({ error: "Email atau PIN tidak valid" });
+    }
+  });
+
   app.post("/api/v1/auth/register", express.json(), (req, res) => {
     const { name, email, password } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: "Missing fields" });

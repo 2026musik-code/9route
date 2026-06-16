@@ -221,8 +221,30 @@ function MainLayout() {
   );
 }
 
-function AdminLayout() {
-  return (
+import AdminLoginView from './components/AdminLoginView';
+
+function AdminRoute() {
+   const [localUser, setLocalUser] = useState(() => {
+       const stored = localStorage.getItem('user');
+       return stored ? JSON.parse(stored) : null;
+   });
+
+   const handleAdminLogin = (loggedInUser: any) => {
+       localStorage.setItem('user', JSON.stringify(loggedInUser));
+       setLocalUser(loggedInUser);
+   };
+
+   const handleLogout = () => {
+       localStorage.removeItem('user');
+       setLocalUser(null);
+       window.location.href = '/';
+   };
+
+   if (!localUser || localUser.role !== 'Admin') {
+       return <AdminLoginView onLogin={handleAdminLogin} />;
+   }
+
+   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800 font-sans">
       <header className="bg-slate-900 text-white p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
@@ -234,8 +256,13 @@ function AdminLayout() {
             <h1 className="text-xl font-bold tracking-tight">System Admin</h1>
           </div>
         </div>
-        <div className="text-xs font-mono font-bold bg-slate-800 px-3 py-1 rounded-full border border-slate-700 text-slate-300">
-           ROOT LEVEL ACCESS
+        <div className="flex items-center gap-4">
+          <div className="text-xs font-mono font-bold bg-slate-800 px-3 py-1 rounded-full border border-slate-700 text-slate-300">
+             ROOT LEVEL ACCESS
+          </div>
+          <button onClick={handleLogout} className="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-md font-medium transition-colors">
+             Keluar
+          </button>
         </div>
       </header>
       <main className="flex-1 p-4 md:p-8 flex justify-center">
@@ -257,17 +284,13 @@ export default function App() {
     setIsAuthenticated(true);
   };
 
-  if (!isAuthenticated) {
-    return <AuthView onLogin={handleLogin} />;
-  }
-
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />} />
-        <Route path="/admin" element={<AdminLayout />} />
-        {/* Handle all other routes by sending back to / */}
-        <Route path="*" element={<MainLayout />} />
+        <Route path="/admin" element={<AdminRoute />} />
+        <Route path="*" element={
+          isAuthenticated ? <MainLayout /> : <AuthView onLogin={handleLogin} />
+        } />
       </Routes>
     </BrowserRouter>
   );

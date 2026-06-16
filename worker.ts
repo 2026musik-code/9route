@@ -50,7 +50,7 @@ const authMiddleware = async (c: any, next: any) => {
     // Validasi token untuk rute admin
     const authHeader = c.req.header('Authorization') || c.req.header('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer admin_token_')) {
-        return c.json({ error: 'Unauthorized' }, 401); // Tidak memanggil next() jika salah
+        return c.json({ error: 'Unauthorized' }, 401); // MUTLAK stop eksekusi
     }
     
     await next();

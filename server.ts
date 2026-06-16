@@ -87,6 +87,7 @@ async function startServer() {
         path.startsWith('/api/v1/chat/completions') || 
         path.startsWith('/api/v1/profile') || 
         path.startsWith('/api/v1/apikeys') ||
+        (path.startsWith('/api/v1/models') && req.method === 'GET') ||
         path === '/api/dashboard'
     ) {
         return next();

@@ -1,0 +1,6 @@
+{
+  "name": "Cloudflareflare API Manager",
+  "description": "Platform pengelola API AI dengan pelacakan kuota, analitik real-time, RBAC, dan integrasi kunci rahasia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

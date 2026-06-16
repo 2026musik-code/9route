@@ -14,6 +14,7 @@ import ApiKeysView from './components/ApiKeysView';
 import ProfileView from './components/ProfileView';
 import AdminView from './components/AdminView';
 import SettingsView from './components/SettingsView';
+import AuthView from './components/AuthView';
 import { ViewState, DashboardData } from './types';
 
 function MainLayout() {
@@ -243,6 +244,12 @@ function AdminLayout() {
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  if (!isAuthenticated) {
+    return <AuthView onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <BrowserRouter>
       <Routes>

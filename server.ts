@@ -16,38 +16,29 @@ async function startServer() {
   app.use(express.json());
 
   // --- In-Memory DB & State ---
-  let quotaState = {
-    totalLimit: 50000,
-    used: 12450,
-    history: [
-      { date: '2023-10-01', tokens: 1200 },
-      { date: '2023-10-02', tokens: 3500 },
-      { date: '2023-10-03', tokens: 2100 },
-      { date: '2023-10-04', tokens: 4800 },
-      { date: '2023-10-05', tokens: 850 },
-    ],
-    logs: [
-      { id: 1, action: 'Chat Completion', model: 'gemini-3-flash-preview', tokens: 2485, timestamp: new Date().toISOString(), status: 'success' }
-    ]
-  };
 
   // --- Real DB State ---
-  let apiKeysState = [
-    { id: '1', name: 'Production Key', key: 'sk-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', createdDate: '2023-10-01', lastUsed: '2 mins ago' },
-    { id: '2', name: 'Development Key', key: 'sk-z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4', createdDate: '2023-10-15', lastUsed: '3 hours ago' },
-  ];
-  let profileState = {
-    name: "Dedi Supriadi",
-    email: "ceodedi@gmail.com",
-    role: "Admin",
-    plan: "Pro Developer",
-    joinedDate: "October 15, 2023",
-    billingCycle: "Monthly ($49.00)",
-    nextPayment: "November 15, 2023"
-  };
   let usersState = [
-    { id: '1', name: "Dedi Supriadi", email: "ceodedi@gmail.com", role: "Admin", plan: "Pro" }
+    { id: '1', name: "Dedi Supriadi", email: "ceodedi@gmail.com", role: "Admin", plan: "Pro", rpdLimit: 50000 }
   ];
+  let apiKeysState = [
+    { id: '1', userId: '1', name: 'Production Key', key: 'sk-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', createdDate: '2023-10-01', lastUsed: '2 mins ago' },
+    { id: '2', userId: '1', name: 'Development Key', key: 'sk-z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4', createdDate: '2023-10-15', lastUsed: '3 hours ago' },
+  ];
+  let userQuotaState: Record<string, any> = {
+    '1': {
+        used: 12450,
+        totalLimit: 50000,
+        logs: [
+          { id: 1, action: 'Chat Completion', model: 'gemini-3-flash-preview', tokens: 2485, timestamp: new Date().toISOString(), status: 'success' }
+        ],
+        history: [
+            { date: '2023-10-01', tokens: 1200 },
+            { date: '2023-10-02', tokens: 3500 },
+            { date: '2023-10-03', tokens: 2100 }
+        ]
+    }
+  };
   let settingsState = {
     rpm: 60,
     rpd: 50000,
@@ -136,14 +127,12 @@ async function startServer() {
   });
 
   app.get("/api/dashboard", (req, res) => {
-    res.json({
-      success: true,
-      data: quotaState
-    });
+    res.json({ success: true, data: userQuotaState['1'] });
   });
 
   app.get("/api/v1/profile", (req, res) => {
-    res.json({ success: true, data: profileState });
+    const user = usersState.find(u => u.id === '1') || usersState[0];
+    res.json({ success: true, data: { ...user, joinedDate: "October 15, 2023", nextPayment: "November 15, 2023" } });
   });
 
   app.get("/api/v1/apikeys", (req, res) => {
@@ -155,6 +144,7 @@ async function startServer() {
     if (!name) return res.status(400).json({ error: "Name is required" });
     const newKey = {
       id: Date.now().toString(),
+      userId: '1',
       name,
       key: 'sk-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
       createdDate: new Date().toISOString().split('T')[0],
@@ -173,6 +163,24 @@ async function startServer() {
   app.get("/api/v1/users", (req, res) => {
     res.json({ success: true, data: usersState });
   });
+  
+  app.put("/api/v1/users/:id", express.json(), (req, res) => {
+    const id = req.params.id;
+    const { rpdLimit, role, plan } = req.body;
+    let user = usersState.find(u => u.id === id);
+    if (user) {
+      if (rpdLimit !== undefined) user.rpdLimit = rpdLimit;
+      if (role !== undefined) user.role = role;
+      if (plan !== undefined) user.plan = plan;
+      
+      if (userQuotaState[id]) {
+          userQuotaState[id].totalLimit = user.rpdLimit;
+      }
+      res.json({ success: true, data: user });
+    } else {
+      res.status(404).json({ error: "User not found" });
+    }
+  });
 
   app.get("/api/v1/settings", (req, res) => {
     res.json({ success: true, data: settingsState });
@@ -180,10 +188,6 @@ async function startServer() {
 
   app.post("/api/v1/settings", express.json(), (req, res) => {
     settingsState = { ...settingsState, ...req.body };
-    // also update quota totalLimit if changed
-    if (req.body.rpd) {
-        quotaState.totalLimit = req.body.rpd;
-    }
     res.json({ success: true, data: settingsState });
   });
 
@@ -194,10 +198,21 @@ async function startServer() {
           return res.status(401).json({ error: "Unauthorized: Invalid or missing API Key" });
       }
 
-      // Allow request regardless of limit as requested by user (limits handled externally/in dashboard tracking)
-      // if (quotaState.used >= quotaState.totalLimit) {
-      //    return res.status(429).json({ error: "Quota Exceeded. Please upgrade your plan." });
-      // }
+      const token = authHeader.split(' ')[1];
+      const validKey = apiKeysState.find(k => k.key === token);
+      if(!validKey) {
+        return res.status(401).json({ error: "Unauthorized: Key not found" });
+      }
+      
+      const userId = validKey.userId;
+      if(!userQuotaState[userId]) {
+         userQuotaState[userId] = { used: 0, totalLimit: 50000, history: [], logs: [] };
+      }
+      const quota = userQuotaState[userId];
+      
+      if(settingsState.enforceApiKey && quota.used >= quota.totalLimit) {
+         return res.status(429).json({ error: "Rate limit exceeded" });
+      }
 
       const { messages, model, stream } = req.body;
       
@@ -214,12 +229,11 @@ async function startServer() {
         })
       });
 
-      const responseData = await response.json();
+      const responseData: any = await response.json();
       
-      // Update Quota internally (Simulated tokens update)
       const usedTokens = responseData.usage?.total_tokens || 100; // fallback if missing
-      quotaState.used += usedTokens;
-      quotaState.logs.unshift({
+      quota.used += usedTokens;
+      quota.logs.unshift({
          id: Date.now(),
          action: 'Chat Completion',
          model: model || "gc/gemini-3-flash-preview",
@@ -229,18 +243,14 @@ async function startServer() {
       });
 
       const today = new Date().toISOString().split('T')[0];
-      const todayHistory = quotaState.history.find(h => h.date === today);
+      const todayHistory = quota.history.find((h:any) => h.date === today);
       if (todayHistory) {
          todayHistory.tokens += usedTokens;
       } else {
-         quotaState.history.push({ date: today, tokens: usedTokens });
+         quota.history.push({ date: today, tokens: usedTokens });
       }
-
-      // Check threshold and simulate notification
-      if (quotaState.used >= quotaState.totalLimit * 0.9) {
-         // simulated threshold warning Event could go here
-         console.warn("QUOTA WARNING: Used reaches 90%!");
-      }
+      
+      validKey.lastUsed = new Date().toISOString();
 
       res.status(response.status).json(responseData);
     } catch (error: any) {

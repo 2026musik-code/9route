@@ -1,0 +1,12 @@
+name = "gemini-api-gateway"
+compatibility_date = "2024-03-20"
+
+# Main entrypoint for Cloudflare Workers API
+main = "worker.ts"
+
+# Deploy the React frontend alongside the API!
+# Any requests that do not match the API routes will serve the static files in ./dist
+[[kv_namespaces]]
+binding = "Apimini"
+id = "5f9867656c55469c96cdb3fa8ccbf2ad"
+

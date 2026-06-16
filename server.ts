@@ -126,6 +126,142 @@ async function startServer() {
     res.json({ success: true, deleted: id });
   });
 
+  app.get("/api/v1/auth/github/url", (req, res) => {
+    // We don't have CF envs here, use process.env if provided, or mock it locally
+    const clientId = process.env.GITHUB_CLIENT_ID || '';
+    if (!clientId) {
+      return res.status(400).json({ error: "missing_config", message: "GITHUB_CLIENT_ID is not set in environment variables." });
+    }
+    const origin = req.protocol + "://" + req.get("host");
+    const redirectUri = `${origin}/api/v1/auth/github/callback`;
+    const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email`;
+    res.json({ url });
+  });
+
+  app.get("/api/v1/auth/github/callback", async (req, res) => {
+    const code = req.query.code as string;
+    const clientId = process.env.GITHUB_CLIENT_ID || '';
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET || '';
+    const origin = req.protocol + "://" + req.get("host");
+
+    if (!code) {
+        return res.status(400).send('No code provided');
+    }
+
+    try {
+        const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                client_id: clientId,
+                client_secret: clientSecret,
+                code,
+                redirect_uri: `${origin}/api/v1/auth/github/callback`
+            })
+        });
+        
+        const tokenData: any = await tokenRes.json();
+        const accessToken = tokenData.access_token;
+
+        if (!accessToken) {
+             return res.status(400).send('Failed to get access token');
+        }
+
+        const userRes = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': 'Local-Server'
+            }
+        });
+        const githubUser: any = await userRes.json();
+        
+        const emailRes = await fetch('https://api.github.com/user/emails', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': 'Local-Server'
+            }
+        });
+        const emails: any[] = await emailRes.json();
+        const primaryEmail = emails.find(e => e.primary)?.email || emails[0]?.email;
+        
+        let user = usersState.find((u: any) => u.email === primaryEmail);
+        
+        if (!user) {
+            user = {
+                id: Date.now().toString(),
+                name: githubUser.name || githubUser.login,
+                email: primaryEmail,
+                password: 'oauth-user', 
+                role: 'User',
+                plan: 'Free',
+                rpdLimit: 50000,
+                joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            } as any;
+            usersState.push(user as any);
+        }
+
+        res.send(`
+            <html>
+                <body>
+                    <script>
+                        if (window.opener) {
+                            window.opener.postMessage(
+                                { type: 'OAUTH_AUTH_SUCCESS', user: ${JSON.stringify({ id: user!.id, name: user!.name, email: user!.email, role: user!.role })} },
+                                '*'
+                            );
+                            window.close();
+                        } else {
+                            window.location.href = '/';
+                        }
+                    </script>
+                    <p>Authentication successful. This window should close automatically...</p>
+                </body>
+            </html>
+        `);
+    } catch (e) {
+        res.status(500).send('OAuth callback error');
+    }
+  });
+
+  app.post("/api/v1/auth/register", express.json(), (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
+
+    if (usersState.find((u: any) => u.email === email)) {
+        return res.status(400).json({ error: "User already exists" });
+    }
+    
+    const newUser = {
+        id: Date.now().toString(),
+        name,
+        email,
+        password, // In a real app, hash this!
+        role: email === 'ceodedi@gmail.com' ? 'Admin' : 'User',
+        plan: 'Free',
+        rpdLimit: 50000,
+        joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    };
+    
+    usersState.push(newUser);
+    res.json({ success: true, user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } });
+  });
+
+  app.post("/api/v1/auth/login", express.json(), (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Missing fields" });
+
+    const user = usersState.find((u: any) => u.email === email && (u as any).password === password);
+    
+    if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  });
+
   app.get("/api/dashboard", (req, res) => {
     res.json({ success: true, data: userQuotaState['1'] });
   });

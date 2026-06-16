@@ -4,6 +4,8 @@ import { cors } from 'hono/cors';
 type Bindings = {
   Apimini: any; // KVNamespace
   ASSETS: any; // Fetcher
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -133,6 +135,114 @@ api.put('/v1/users/:id', async (c) => {
 });
 
 // --- Auth ---
+api.get('/v1/auth/github/url', (c) => {
+    const clientId = c.env.GITHUB_CLIENT_ID || '';
+    if (!clientId) {
+        return c.json({ error: "missing_config", message: "GITHUB_CLIENT_ID is not configured in Cloudflare Workers." }, 400);
+    }
+    // Use the origin from the request or fallback to dev URL
+    const origin = new URL(c.req.url).origin;
+    const redirectUri = `${origin}/api/v1/auth/github/callback`;
+    const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email`;
+    return c.json({ url });
+});
+
+api.get('/v1/auth/github/callback', async (c) => {
+    const code = c.req.query('code');
+    const clientId = c.env.GITHUB_CLIENT_ID || '';
+    const clientSecret = c.env.GITHUB_CLIENT_SECRET || '';
+    // Use the origin from the request
+    const origin = new URL(c.req.url).origin;
+    
+    if (!code) {
+        return c.text('No code provided', 400);
+    }
+
+    try {
+        // Exchange code for access token
+        const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                client_id: clientId,
+                client_secret: clientSecret,
+                code,
+                redirect_uri: `${origin}/api/v1/auth/github/callback`
+            })
+        });
+        
+        const tokenData: any = await tokenRes.json();
+        const accessToken = tokenData.access_token;
+
+        if (!accessToken) {
+             return c.text('Failed to get access token', 400);
+        }
+
+        // Get user data
+        const userRes = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': 'Cloudflare-Worker'
+            }
+        });
+        const githubUser: any = await userRes.json();
+        
+        // Get user email
+        const emailRes = await fetch('https://api.github.com/user/emails', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': 'Cloudflare-Worker'
+            }
+        });
+        const emails: any[] = await emailRes.json();
+        const primaryEmail = emails.find(e => e.primary)?.email || emails[0]?.email;
+        
+        // Find or create user
+        let users = await getKV(c, 'users', []);
+        let user = users.find((u: any) => u.email === primaryEmail);
+        
+        if (!user) {
+            user = {
+                id: Date.now().toString(),
+                name: githubUser.name || githubUser.login,
+                email: primaryEmail,
+                password: 'oauth-user', 
+                role: 'User',
+                plan: 'Free',
+                rpdLimit: 50000,
+                joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            };
+            users.push(user);
+            await putKV(c, 'users', users);
+        }
+
+        // Return HTML script to close popup and send postMessage with user data
+        return c.html(`
+            <html>
+                <body>
+                    <script>
+                        if (window.opener) {
+                            window.opener.postMessage(
+                                { type: 'OAUTH_AUTH_SUCCESS', user: ${JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role })} },
+                                '*'
+                            );
+                            window.close();
+                        } else {
+                            window.location.href = '/';
+                        }
+                    </script>
+                    <p>Authentication successful. This window should close automatically...</p>
+                </body>
+            </html>
+        `);
+    } catch (e) {
+        return c.text('OAuth callback error', 500);
+    }
+});
+
 api.post('/v1/auth/register', async (c) => {
     const { name, email, password } = await c.req.json();
     if (!name || !email || !password) return c.json({ error: "Missing fields" }, 400);

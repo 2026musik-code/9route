@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock, Mail, Users, ArrowRight, Github } from 'lucide-react';
 
@@ -10,6 +10,44 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin is from AI Studio preview or localhost
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.user) {
+        onLogin(event.data.user);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onLogin]);
+
+  const handleGithubLogin = async () => {
+    try {
+      const res = await fetch('/api/v1/auth/github/url');
+      const data = await res.json();
+      if (data.error === "missing_config") {
+          alert('GitHub login is not fully set up. You need to configure GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in your Cloudflare environment.');
+          return;
+      }
+      if (data.url) {
+        const authWindow = window.open(
+          data.url,
+          'oauth_popup',
+          'width=600,height=700'
+        );
+        if (!authWindow) {
+          alert('Please allow popups for this site to connect your account.');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to get GitHub URL');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +207,7 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
             <div className="mt-6">
               <button
                 type="button"
+                onClick={handleGithubLogin}
                 className="w-full inline-flex justify-center py-2.5 px-4 border border-slate-300 dark:border-slate-700 rounded-xl shadow-sm bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
               >
                 <Github className="w-5 h-5 text-slate-900 dark:text-white mr-2" />

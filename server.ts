@@ -12,7 +12,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.set("trust proxy", true);
   app.use(cors());
+
   app.use(express.json());
 
   // --- In-Memory DB & State ---

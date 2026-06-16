@@ -79,13 +79,27 @@ async function startServer() {
   };
   loadModels();
 
-  const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const path = req.path;
+    // Izinkan rute publik dan user agar tidak terblokir middleware admin
+    if (
+        path.startsWith('/api/v1/auth') || 
+        path.startsWith('/api/v1/chat/completions') || 
+        path.startsWith('/api/v1/profile') || 
+        path.startsWith('/api/v1/apikeys') ||
+        path === '/api/dashboard'
+    ) {
+        return next();
+    }
+
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer admin_token_')) {
-        return res.status(401).json({ error: "Unauthorized: Admin access required" });
+        return res.status(401).json({ error: "Unauthorized" });
     }
     next();
   };
+  
+  app.use('/api/v1', authMiddleware);
 
   // --- API Routes ---
   app.get("/api/v1/models", async (req, res) => {
@@ -98,14 +112,14 @@ async function startServer() {
     });
   });
 
-  app.delete("/api/v1/models/entry", adminAuth, (req, res) => {
+  app.delete("/api/v1/models/entry", (req, res) => {
     const id = req.query.id as string;
     if (!id) return res.status(400).json({ error: "No ID provided" });
     modelsCache = modelsCache.filter(m => m.id !== id);
     res.json({ success: true, deleted: id });
   });
 
-  app.post("/api/v1/models", adminAuth, express.json(), (req, res) => {
+  app.post("/api/v1/models", express.json(), (req, res) => {
     const { id, owned_by } = req.body;
     if (!id || !owned_by) return res.status(400).json({ error: "Missing fields" });
     const newModel = { id, object: "model", owned_by };
@@ -117,7 +131,7 @@ async function startServer() {
     res.json({ data: endpointsCache });
   });
 
-  app.post("/api/v1/endpoints", adminAuth, express.json(), (req, res) => {
+  app.post("/api/v1/endpoints", express.json(), (req, res) => {
     const { method, path, description } = req.body;
     if (!method || !path) return res.status(400).json({ error: "Missing fields" });
     const newEndpoint = {
@@ -130,7 +144,7 @@ async function startServer() {
     res.json({ success: true, data: newEndpoint });
   });
 
-  app.delete("/api/v1/endpoints/:id", adminAuth, (req, res) => {
+  app.delete("/api/v1/endpoints/:id", (req, res) => {
     const id = req.params.id;
     endpointsCache = endpointsCache.filter(e => e.id !== id);
     res.json({ success: true, deleted: id });
@@ -337,11 +351,11 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.get("/api/v1/users", adminAuth, (req, res) => {
+  app.get("/api/v1/users", (req, res) => {
     res.json({ success: true, data: usersState });
   });
   
-  app.put("/api/v1/users/:id", adminAuth, express.json(), (req, res) => {
+  app.put("/api/v1/users/:id", express.json(), (req, res) => {
     const id = req.params.id;
     const { rpdLimit, role, plan } = req.body;
     let user = usersState.find(u => u.id === id);
@@ -359,11 +373,11 @@ async function startServer() {
     }
   });
 
-  app.get("/api/v1/settings", adminAuth, (req, res) => {
+  app.get("/api/v1/settings", (req, res) => {
     res.json({ success: true, data: settingsState });
   });
 
-  app.post("/api/v1/settings", adminAuth, express.json(), (req, res) => {
+  app.post("/api/v1/settings", express.json(), (req, res) => {
     settingsState = { ...settingsState, ...req.body };
     res.json({ success: true, data: settingsState });
   });

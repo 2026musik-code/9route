@@ -230,8 +230,11 @@ async function startServer() {
 
   app.post("/api/v1/auth/admin", express.json(), (req, res) => {
     const { email, pin } = req.body;
-    const ADMIN_PIN = process.env.ADMIN_PIN || '123456';
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+    let ADMIN_PIN = process.env.ADMIN_PIN || '123456';
+    let ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+
+    if (settingsState.adminPin) ADMIN_PIN = settingsState.adminPin;
+    if (settingsState.adminEmail) ADMIN_EMAIL = settingsState.adminEmail;
 
     if (email === ADMIN_EMAIL && pin === ADMIN_PIN) {
         let user = usersState.find((u: any) => u.email === email);

@@ -409,6 +409,26 @@ export default function AdminView() {
                  <button onClick={updateSettings} className="w-full bg-slate-800 dark:bg-slate-800 hover:bg-slate-900 dark:hover:bg-slate-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">Update Security</button>
               </div>
             </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="w-5 h-5 text-indigo-600 text-indigo-400" />
+                <h4 className="font-bold text-slate-800 dark:text-white">Admin Credentials</h4>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">Admin Email</label>
+                  <input type="email" placeholder="Misal: ceodedi@gmail.com" value={settings.adminEmail || ''} onChange={e => setSettings({...settings, adminEmail: e.target.value})} className="w-full px-3 py-2 bg-transparent text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                  <span className="text-xs text-slate-500 mt-1 block">Kosongkan untuk menggunakan default env.</span>
+                </div>
+                <div>
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">Admin PIN</label>
+                   <input type="password" placeholder="Masukan PIN Baru" value={settings.adminPin || ''} onChange={e => setSettings({...settings, adminPin: e.target.value})} className="w-full px-3 py-2 bg-transparent text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                   <span className="text-xs text-slate-500 mt-1 block">Kosongkan untuk menggunakan default env.</span>
+                </div>
+                <button onClick={updateSettings} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">Update Credentials</button>
+              </div>
+            </div>
          </div>
       )}
 

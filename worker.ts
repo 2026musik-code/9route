@@ -247,8 +247,12 @@ api.get('/v1/auth/github/callback', async (c) => {
 
 api.post('/v1/auth/admin', async (c) => {
     const { email, pin } = await c.req.json();
-    const ADMIN_PIN = c.env.ADMIN_PIN || '123456';
-    const ADMIN_EMAIL = c.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+    let ADMIN_PIN = c.env.ADMIN_PIN || '123456';
+    let ADMIN_EMAIL = c.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+
+    const settings = await getKV(c, 'settings', {});
+    if (settings.adminPin) ADMIN_PIN = settings.adminPin;
+    if (settings.adminEmail) ADMIN_EMAIL = settings.adminEmail;
 
     if (email === ADMIN_EMAIL && pin === ADMIN_PIN) {
         let users = await getKV(c, 'users', []);

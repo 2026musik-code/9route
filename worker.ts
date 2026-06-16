@@ -136,7 +136,7 @@ api.put('/v1/users/:id', async (c) => {
 
 // --- Auth ---
 api.get('/v1/auth/github/url', (c) => {
-    const clientId = c.env.GITHUB_CLIENT_ID || '';
+    const clientId = c.env.GITHUB_CLIENT_ID || 'Ov23liIBWSRxMWALRd0m';
     if (!clientId) {
         return c.json({ error: "missing_config", message: "GITHUB_CLIENT_ID is not configured in Cloudflare Workers." }, 400);
     }
@@ -149,8 +149,8 @@ api.get('/v1/auth/github/url', (c) => {
 
 api.get('/v1/auth/github/callback', async (c) => {
     const code = c.req.query('code');
-    const clientId = c.env.GITHUB_CLIENT_ID || '';
-    const clientSecret = c.env.GITHUB_CLIENT_SECRET || '';
+    const clientId = c.env.GITHUB_CLIENT_ID || 'Ov23liIBWSRxMWALRd0m';
+    const clientSecret = c.env.GITHUB_CLIENT_SECRET || 'c0b068a554e17c098025cf9c8df96bce8cc2968f';
     // Use the origin from the request
     const origin = new URL(c.req.url).origin;
     

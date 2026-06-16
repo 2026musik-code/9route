@@ -128,7 +128,7 @@ async function startServer() {
 
   app.get("/api/v1/auth/github/url", (req, res) => {
     // We don't have CF envs here, use process.env if provided, or mock it locally
-    const clientId = process.env.GITHUB_CLIENT_ID || '';
+    const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liIBWSRxMWALRd0m';
     if (!clientId) {
       return res.status(400).json({ error: "missing_config", message: "GITHUB_CLIENT_ID is not set in environment variables." });
     }
@@ -140,8 +140,8 @@ async function startServer() {
 
   app.get("/api/v1/auth/github/callback", async (req, res) => {
     const code = req.query.code as string;
-    const clientId = process.env.GITHUB_CLIENT_ID || '';
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET || '';
+    const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liIBWSRxMWALRd0m';
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET || 'c0b068a554e17c098025cf9c8df96bce8cc2968f';
     const origin = req.protocol + "://" + req.get("host");
 
     if (!code) {

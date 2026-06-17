@@ -505,16 +505,30 @@ api.get("/dashboard", async (c) => {
   return c.json({ success: true, data: quota });
 });
 
-api.post("/v1/chat/completions", async (c) => {
+// --- Dynamic API Proxy ---
+api.all("/*", async (c, next) => {
+  const settings = await getKV(c, "settings", {
+    rpm: 60,
+    rpd: 50000,
+    enforceApiKey: true,
+    logRequests: true,
+    targetApiKey: "sk-29fa8223c11e1e03-1b921u-9fe190d7",
+    targetBaseUrl: "https://api.cloudflaremini.biz.id/v1",
+  });
+
+  const eps = await getKV(c, "endpoints", [
+    { id: "ep-1", method: "POST", path: "/api/v1/chat/completions" },
+  ]);
+
+  const reqPath = c.req.path;
+  const reqMethod = c.req.method;
+
+  const endpointConfig = eps.find((e: any) => e.path === reqPath && e.method === reqMethod);
+  if (!endpointConfig) {
+    return next(); // Not a proxied API endpoint
+  }
+
   try {
-    const settings = await getKV(c, "settings", {
-      rpm: 60,
-      rpd: 50000,
-      enforceApiKey: true,
-      logRequests: true,
-      targetApiKey: "sk-29fa8223c11e1e03-1b921u-9fe190d7",
-      targetBaseUrl: "https://api.cloudflaremini.biz.id/v1",
-    });
     const authHeader = c.req.header("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer sk-")) {
       return c.json({ error: "Unauthorized: Invalid or missing API Key" }, 401);
@@ -548,34 +562,61 @@ api.post("/v1/chat/completions", async (c) => {
     });
 
     // Verify limit
-    if (quota.used >= quota.totalLimit) {
+    if (settings.enforceApiKey && quota.used >= quota.totalLimit) {
       return c.json({ error: "Rate limit exceeded. Check your plan." }, 429);
     }
 
-    const body = await c.req.json();
-    const { messages, model, stream } = body;
+    const targetPath = reqPath.replace(/^\/api\/v1/, "");
 
-    const response = await fetch(`${settings.targetBaseUrl}/chat/completions`, {
-      method: "POST",
+    const fetchOptions: any = {
+      method: reqMethod,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": c.req.header("content-type") || "application/json",
         Authorization: `Bearer ${settings.targetApiKey}`,
       },
-      body: JSON.stringify({
-        model: model || "gc/gemini-3-flash-preview",
-        stream: !!stream,
-        messages: messages,
-      }),
-    });
+      // Note: Cloudflare Fetch body cannot be added to GET/HEAD
+    };
 
-    const responseData: any = await response.json();
+    let reqBody: any = null;
+    let model = "unknown";
+    if (reqMethod !== "GET" && reqMethod !== "HEAD") {
+      // Hono body parsing
+      try {
+         // Attempt to read body as logic needs model
+         const bodyText = await c.req.text();
+         if (bodyText) {
+            fetchOptions.body = bodyText;
+            try {
+               reqBody = JSON.parse(bodyText);
+               if (reqBody.model) model = reqBody.model;
+            } catch (e) {}
+         }
+      } catch(e) {}
+    }
 
-    const usedTokens = responseData.usage?.total_tokens || 100;
+    const response = await fetch(`${settings.targetBaseUrl}${targetPath}`, fetchOptions);
+
+    const contentType = response.headers.get("content-type") || "";
+    let responseData: any;
+    let usedTokens = 100;
+
+    if (contentType.includes("application/json")) {
+      responseData = await response.json();
+      if (responseData.usage?.total_tokens) {
+        usedTokens = responseData.usage.total_tokens;
+      } else if (reqPath.includes("images")) {
+        usedTokens = 500;
+      }
+    } else {
+      responseData = await response.arrayBuffer();
+      usedTokens = 50;
+    }
+
     quota.used += usedTokens;
     quota.logs.unshift({
       id: Date.now(),
-      action: "Chat Completion",
-      model: model || "gc/gemini-3-flash-preview",
+      action: endpointConfig.description || `Proxy ${reqMethod} ${targetPath}`,
+      model: model,
       tokens: usedTokens,
       timestamp: new Date().toISOString(),
       status: response.ok ? "success" : "error",
@@ -594,7 +635,13 @@ api.post("/v1/chat/completions", async (c) => {
     validKey.lastUsed = new Date().toISOString();
     await putKV(c, "apikeys", keys);
 
-    return c.json(responseData, response.status as any);
+    if (contentType.includes("application/json")) {
+       return c.json(responseData, response.status as any);
+    } else {
+       return c.body(responseData, response.status as any, {
+          "Content-Type": contentType
+       });
+    }
   } catch (error: any) {
     console.error("Proxy Error:", error);
     return c.json({ error: "Internal Server Error proxying request" }, 500);

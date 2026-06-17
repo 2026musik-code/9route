@@ -490,7 +490,14 @@ async function startServer() {
     res.json({ success: true, data: settingsState });
   });
 
-  app.post("/api/v1/chat/completions", async (req, res) => {
+  // --- Dynamic API Proxy ---
+  app.all("/api/v1/*", async (req, res, next) => {
+    // Check if the route is defined in the endpoints configuration
+    const endpointConfig = endpointsCache.find((e) => e.path === req.path && e.method === req.method);
+    if (!endpointConfig) {
+      return next(); // Pass to the next handler if not a configured proxy endpoint
+    }
+
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer sk-")) {
@@ -520,32 +527,51 @@ async function startServer() {
         return res.status(429).json({ error: "Rate limit exceeded" });
       }
 
-      const { messages, model, stream } = req.body;
+      const targetPath = req.path.replace(/^\/api\/v1/, "");
+      
+      const fetchOptions: any = {
+        method: req.method,
+        headers: {
+          "Content-Type": req.headers["content-type"] || "application/json",
+          Authorization: `Bearer ${settingsState.targetApiKey}`,
+        },
+      };
+
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
 
       const response = await fetch(
-        `${settingsState.targetBaseUrl}/chat/completions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${settingsState.targetApiKey}`,
-          },
-          body: JSON.stringify({
-            model: model || "gc/gemini-3-flash-preview",
-            stream: !!stream,
-            messages: messages,
-          }),
-        },
+        `${settingsState.targetBaseUrl}${targetPath}`,
+        fetchOptions
       );
 
-      const responseData: any = await response.json();
+      // We handle JSON responses for logging, or fallback to text/buffer if needed
+      const contentType = response.headers.get("content-type") || "";
+      let responseData: any;
+      let usedTokens = 100;
+      let model = req.body?.model || "unknown";
 
-      const usedTokens = responseData.usage?.total_tokens || 100; // fallback if missing
+      if (contentType.includes("application/json")) {
+        responseData = await response.json();
+        if (responseData.usage?.total_tokens) {
+          usedTokens = responseData.usage.total_tokens;
+        } else if (req.path.includes("images")) {
+          usedTokens = 500; // rough estimate for image endpoints
+        }
+        res.status(response.status).json(responseData);
+      } else {
+        // If not JSON (could be a stream, audio, etc) we just pipe it
+        const buffer = await response.arrayBuffer();
+        res.status(response.status).end(Buffer.from(buffer));
+        usedTokens = 50; // generic token deduction
+      }
+
       quota.used += usedTokens;
       quota.logs.unshift({
         id: Date.now(),
-        action: "Chat Completion",
-        model: model || "gc/gemini-3-flash-preview",
+        action: endpointConfig.description || `Proxy ${req.method} ${targetPath}`,
+        model: model,
         tokens: usedTokens,
         timestamp: new Date().toISOString(),
         status: response.ok ? "success" : "error",
@@ -561,7 +587,6 @@ async function startServer() {
 
       validKey.lastUsed = new Date().toISOString();
 
-      res.status(response.status).json(responseData);
     } catch (error: any) {
       console.error("Proxy Error:", error);
       res.status(500).json({ error: "Internal Server Error proxying request" });

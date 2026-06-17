@@ -220,12 +220,17 @@ export default function ApiKeysView() {
         <Server className="w-5 h-5 text-indigo-600" /> Available Endpoints
       </h4>
       <div className="grid grid-cols-1 gap-4">
-        {endpoints.map((ep) => (
-          <div key={ep.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-colors">
+        {endpoints.length === 0 ? (
+          <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm font-medium border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+            Tidak ada endpoint yang tersedia. Anda dapat menambahkannya melalui Dasbor Admin.
+          </div>
+        ) : (
+          endpoints.map((ep) => (
+            <div key={ep.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-colors">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
                 <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider">{ep.method}</span>
-                <span className="text-sm font-semibold text-slate-800 dark:text-white truncate">{ep.description}</span>
+                <span className="text-sm font-semibold text-slate-800 dark:text-white truncate">{ep.description || "API Endpoint"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-slate-400 shrink-0" />
@@ -270,7 +275,7 @@ export default function ApiKeysView() {
               </button>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* Test Result Modal */}

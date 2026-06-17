@@ -84,20 +84,22 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[500px] lg:h-[calc(100vh-12rem)]">
       {/* Input Section */}
       <div className="flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden min-h-[300px] lg:min-h-0">
-        <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/50">
+        <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/50">
           <span className="font-bold text-slate-800 dark:text-white text-sm">Endpoint Setup</span>
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative w-full sm:w-auto" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg uppercase outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer border border-indigo-200 dark:border-indigo-800 transition-colors"
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 text-[10px] sm:text-xs font-mono font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg uppercase outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer border border-indigo-200 dark:border-indigo-800 transition-colors"
             >
-              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-              {selectedModel}
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                <span className="truncate">{selectedModel}</span>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-3 overflow-hidden">
+              <div className="absolute left-0 right-0 sm:left-auto sm:right-0 mt-2 w-full sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-3 overflow-hidden">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
                   Select AI Model
                 </div>

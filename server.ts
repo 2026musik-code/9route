@@ -116,11 +116,18 @@ async function startServer() {
     if (
       path.startsWith("/api/v1/auth") ||
       path.startsWith("/api/v1/chat/completions") ||
+      path.startsWith("/auth") ||
+      path.startsWith("/chat/completions") ||
+      path.startsWith("/profile") ||
       path.startsWith("/api/v1/profile") ||
+      path.startsWith("/apikeys") ||
       path.startsWith("/api/v1/apikeys") ||
+      (path.startsWith("/models") && req.method === "GET") ||
       (path.startsWith("/api/v1/models") && req.method === "GET") ||
+      (path.startsWith("/endpoints") && req.method === "GET") ||
       (path.startsWith("/api/v1/endpoints") && req.method === "GET") ||
-      path === "/api/dashboard"
+      path === "/api/dashboard" ||
+      path === "/dashboard"
     ) {
       return next();
     }

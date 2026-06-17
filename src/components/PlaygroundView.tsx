@@ -5,6 +5,8 @@ import { Send, Loader2, Code, Link2, KeyRound, ChevronDown } from 'lucide-react'
 export default function PlaygroundView({ refreshDashboard }: { refreshDashboard: () => void }) {
   const { t } = useTranslation();
   const [prompt, setPrompt] = useState('Halo! Jawab dengan singkat: apakah koneksi HTTPS domain baruku ini sudah berjalan sempurna?');
+  const [payloadMode, setPayloadMode] = useState<'chat' | 'raw'>('chat');
+  const [rawPayload, setRawPayload] = useState('{\n  "model": "gemini-1.5-flash",\n  "messages": [\n    { "role": "user", "content": "Halo!" }\n  ]\n}');
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,19 +58,28 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
           'Content-Type': 'application/json',
           'Authorization': authHeader
         },
-        body: JSON.stringify({
-          model: selectedModel,
-          stream: false,
-          temperature,
-          max_tokens: maxTokens,
-          messages: [{ role: 'user', content: prompt }]
-        })
+        body: payloadMode === 'chat' 
+          ? JSON.stringify({
+              model: selectedModel,
+              stream: false,
+              temperature,
+              max_tokens: maxTokens,
+              messages: [{ role: 'user', content: prompt }]
+            })
+          : rawPayload
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data: any;
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const textData = await res.text();
+        data = { error: textData || 'Invalid non-JSON response received' };
+      }
       
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch response');
+        throw new Error(data.error?.message || data.error || 'Failed to fetch response');
       }
 
       setResponse(JSON.stringify(data, null, 2));
@@ -188,18 +199,33 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
         </div>
 
         <div className="p-3 md:p-4 flex-1 flex flex-col">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Message Payload</label>
-          <textarea
-            className="w-full h-40 lg:h-auto flex-1 p-3 md:p-4 bg-slate-50 dark:bg-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 resize-none text-slate-800 dark:text-slate-200 transition-all font-mono text-sm border border-slate-100 dark:border-slate-700 outline-none"
-            placeholder={t('Type message')}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
+          <div className="flex flex-wrap items-center justify-between mb-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payload</label>
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button onClick={() => setPayloadMode('chat')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'chat' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Chat Format</button>
+              <button onClick={() => setPayloadMode('raw')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'raw' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Raw JSON</button>
+            </div>
+          </div>
+          {payloadMode === 'chat' ? (
+            <textarea
+              className="w-full h-40 lg:h-auto flex-1 p-3 md:p-4 bg-slate-50 dark:bg-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 resize-none text-slate-800 dark:text-slate-200 transition-all font-mono text-sm border border-slate-100 dark:border-slate-700 outline-none"
+              placeholder={t('Type message')}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+          ) : (
+            <textarea
+              className="w-full h-40 lg:h-auto flex-1 p-3 md:p-4 bg-slate-900 text-[#a5d6ff] rounded-xl focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all font-mono text-sm border border-slate-800 outline-none whitespace-pre"
+              placeholder={'{\n  "prompt": "flying cat",\n  "model": "stable-diffusion"\n}'}
+              value={rawPayload}
+              onChange={(e) => setRawPayload(e.target.value)}
+            />
+          )}
         </div>
         <div className="p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
           <button
             onClick={handleSend}
-            disabled={loading || !prompt.trim()}
+            disabled={loading || (payloadMode === 'chat' ? !prompt.trim() : !rawPayload.trim())}
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

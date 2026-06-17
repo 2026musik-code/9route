@@ -88,6 +88,12 @@ async function startServer() {
       path: "/api/v1/chat/completions",
       description: "Generate text completion from chat messages",
     },
+    {
+      id: "ep-2",
+      method: "POST",
+      path: "/api/v1/images/generations",
+      description: "Generate an image from a prompt",
+    },
   ];
 
   const loadModels = async () => {
@@ -116,6 +122,7 @@ async function startServer() {
     if (
       path.startsWith("/api/v1/auth") ||
       path.startsWith("/api/v1/chat/completions") ||
+      path.startsWith("/api/v1/images/generations") ||
       path.startsWith("/auth") ||
       path.startsWith("/chat/completions") ||
       path.startsWith("/profile") ||

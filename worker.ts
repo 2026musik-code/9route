@@ -37,6 +37,7 @@ const authMiddleware = async (c: any, next: any) => {
   if (
     path.startsWith("/api/v1/auth") ||
     path.startsWith("/api/v1/chat/completions") ||
+    path.startsWith("/api/v1/images/generations") ||
     path.startsWith("/api/v1/profile") ||
     path.startsWith("/api/v1/apikeys") ||
     (path.startsWith("/api/v1/models") && c.req.method === "GET") ||
@@ -111,6 +112,7 @@ api.post("/v1/models", async (c) => {
 api.get("/v1/endpoints", async (c) => {
   const eps = await getKV(c, "endpoints", [
     { id: "ep-1", method: "POST", path: "/api/v1/chat/completions" },
+    { id: "ep-2", method: "POST", path: "/api/v1/images/generations" },
   ]);
   return c.json({ data: eps });
 });
@@ -518,6 +520,7 @@ api.all("/*", async (c, next) => {
 
   const eps = await getKV(c, "endpoints", [
     { id: "ep-1", method: "POST", path: "/api/v1/chat/completions" },
+    { id: "ep-2", method: "POST", path: "/api/v1/images/generations" },
   ]);
 
   const reqPath = c.req.path;

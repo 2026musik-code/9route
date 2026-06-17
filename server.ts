@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,35 +21,62 @@ async function startServer() {
 
   // --- Real DB State ---
   let usersState = [
-    { id: '1', name: "Dedi Supriadi", email: "ceodedi@gmail.com", role: "Admin", plan: "Pro", rpdLimit: 50000 }
+    {
+      id: "1",
+      name: "Dedi Supriadi",
+      email: "ceodedi@gmail.com",
+      role: "Admin",
+      plan: "Pro",
+      rpdLimit: 50000,
+    },
   ];
   let apiKeysState = [
-    { id: '1', userId: '1', name: 'Production Key', key: 'sk-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', createdDate: '2023-10-01', lastUsed: '2 mins ago' },
-    { id: '2', userId: '1', name: 'Development Key', key: 'sk-z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4', createdDate: '2023-10-15', lastUsed: '3 hours ago' },
+    {
+      id: "1",
+      userId: "1",
+      name: "Production Key",
+      key: "sk-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      createdDate: "2023-10-01",
+      lastUsed: "2 mins ago",
+    },
+    {
+      id: "2",
+      userId: "1",
+      name: "Development Key",
+      key: "sk-z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4",
+      createdDate: "2023-10-15",
+      lastUsed: "3 hours ago",
+    },
   ];
   let userQuotaState: Record<string, any> = {
-    '1': {
-        used: 12450,
-        totalLimit: 50000,
-        logs: [
-          { id: 1, action: 'Chat Completion', model: 'gemini-3-flash-preview', tokens: 2485, timestamp: new Date().toISOString(), status: 'success' }
-        ],
-        history: [
-            { date: '2023-10-01', tokens: 1200 },
-            { date: '2023-10-02', tokens: 3500 },
-            { date: '2023-10-03', tokens: 2100 }
-        ]
-    }
+    "1": {
+      used: 12450,
+      totalLimit: 50000,
+      logs: [
+        {
+          id: 1,
+          action: "Chat Completion",
+          model: "gemini-3-flash-preview",
+          tokens: 2485,
+          timestamp: new Date().toISOString(),
+          status: "success",
+        },
+      ],
+      history: [
+        { date: "2023-10-01", tokens: 1200 },
+        { date: "2023-10-02", tokens: 3500 },
+        { date: "2023-10-03", tokens: 2100 },
+      ],
+    },
   };
   let settingsState = {
     rpm: 60,
     rpd: 50000,
     enforceApiKey: true,
-    logRequests: true
+    logRequests: true,
+    targetApiKey: "sk-29fa8223c11e1e03-1b921u-9fe190d7",
+    targetBaseUrl: "https://api.cloudflaremini.biz.id/v1",
   };
-
-  const API_KEY = "sk-29fa8223c11e1e03-1b921u-9fe190d7";
-  const TARGET_URL = "https://api.cloudflaremini.biz.id/v1/chat/completions";
 
   let modelsCache: any[] = [];
   let isModelsLoaded = false;
@@ -59,14 +86,14 @@ async function startServer() {
       id: "ep-1",
       method: "POST",
       path: "/api/v1/chat/completions",
-      description: "Generate text completion from chat messages"
-    }
+      description: "Generate text completion from chat messages",
+    },
   ];
 
   const loadModels = async () => {
     try {
-      const response = await fetch("https://api.cloudflaremini.biz.id/v1/models", {
-        headers: { "Authorization": `Bearer ${API_KEY}` }
+      const response = await fetch(`${settingsState.targetBaseUrl}/models`, {
+        headers: { Authorization: `Bearer ${settingsState.targetApiKey}` },
       });
       const data = await response.json();
       if (data && data.data) {
@@ -79,29 +106,33 @@ async function startServer() {
   };
   loadModels();
 
-  const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authMiddleware = (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     const path = req.path;
     // Izinkan rute publik dan user agar tidak terblokir middleware admin
     if (
-        path.startsWith('/api/v1/auth') || 
-        path.startsWith('/api/v1/chat/completions') || 
-        path.startsWith('/api/v1/profile') || 
-        path.startsWith('/api/v1/apikeys') ||
-        (path.startsWith('/api/v1/models') && req.method === 'GET') ||
-        (path.startsWith('/api/v1/endpoints') && req.method === 'GET') ||
-        path === '/api/dashboard'
+      path.startsWith("/api/v1/auth") ||
+      path.startsWith("/api/v1/chat/completions") ||
+      path.startsWith("/api/v1/profile") ||
+      path.startsWith("/api/v1/apikeys") ||
+      (path.startsWith("/api/v1/models") && req.method === "GET") ||
+      (path.startsWith("/api/v1/endpoints") && req.method === "GET") ||
+      path === "/api/dashboard"
     ) {
-        return next();
+      return next();
     }
 
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer admin_token_')) {
-        return res.status(401).json({ error: "Unauthorized" });
+    if (!authHeader || !authHeader.startsWith("Bearer admin_token_")) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
     next();
   };
-  
-  app.use('/api/v1', authMiddleware);
+
+  app.use("/api/v1", authMiddleware);
 
   // --- API Routes ---
   app.get("/api/v1/models", async (req, res) => {
@@ -110,20 +141,21 @@ async function startServer() {
     }
     res.json({
       object: "list",
-      data: modelsCache
+      data: modelsCache,
     });
   });
 
   app.delete("/api/v1/models/entry", (req, res) => {
     const id = req.query.id as string;
     if (!id) return res.status(400).json({ error: "No ID provided" });
-    modelsCache = modelsCache.filter(m => m.id !== id);
+    modelsCache = modelsCache.filter((m) => m.id !== id);
     res.json({ success: true, deleted: id });
   });
 
   app.post("/api/v1/models", express.json(), (req, res) => {
     const { id, owned_by } = req.body;
-    if (!id || !owned_by) return res.status(400).json({ error: "Missing fields" });
+    if (!id || !owned_by)
+      return res.status(400).json({ error: "Missing fields" });
     const newModel = { id, object: "model", owned_by };
     modelsCache.unshift(newModel);
     res.json({ success: true, data: newModel });
@@ -135,12 +167,13 @@ async function startServer() {
 
   app.post("/api/v1/endpoints", express.json(), (req, res) => {
     const { method, path, description } = req.body;
-    if (!method || !path) return res.status(400).json({ error: "Missing fields" });
+    if (!method || !path)
+      return res.status(400).json({ error: "Missing fields" });
     const newEndpoint = {
       id: "ep-" + Date.now(),
       method: method.toUpperCase(),
       path,
-      description: description || ""
+      description: description || "",
     };
     endpointsCache.push(newEndpoint);
     res.json({ success: true, data: newEndpoint });
@@ -148,15 +181,20 @@ async function startServer() {
 
   app.delete("/api/v1/endpoints/:id", (req, res) => {
     const id = req.params.id;
-    endpointsCache = endpointsCache.filter(e => e.id !== id);
+    endpointsCache = endpointsCache.filter((e) => e.id !== id);
     res.json({ success: true, deleted: id });
   });
 
   app.get("/api/v1/auth/github/url", (req, res) => {
     // We don't have CF envs here, use process.env if provided, or mock it locally
-    const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liIBWSRxMWALRd0m';
+    const clientId = process.env.GITHUB_CLIENT_ID || "Ov23liIBWSRxMWALRd0m";
     if (!clientId) {
-      return res.status(400).json({ error: "missing_config", message: "GITHUB_CLIENT_ID is not set in environment variables." });
+      return res
+        .status(400)
+        .json({
+          error: "missing_config",
+          message: "GITHUB_CLIENT_ID is not set in environment variables.",
+        });
     }
     const origin = req.protocol + "://" + req.get("host");
     const redirectUri = `${origin}/api/v1/auth/github/callback`;
@@ -166,70 +204,80 @@ async function startServer() {
 
   app.get("/api/v1/auth/github/callback", async (req, res) => {
     const code = req.query.code as string;
-    const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liIBWSRxMWALRd0m';
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET || 'c0b068a554e17c098025cf9c8df96bce8cc2968f';
+    const clientId = process.env.GITHUB_CLIENT_ID || "Ov23liIBWSRxMWALRd0m";
+    const clientSecret =
+      process.env.GITHUB_CLIENT_SECRET ||
+      "c0b068a554e17c098025cf9c8df96bce8cc2968f";
     const origin = req.protocol + "://" + req.get("host");
 
     if (!code) {
-        return res.status(400).send('No code provided');
+      return res.status(400).send("No code provided");
     }
 
     try {
-        const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                client_id: clientId,
-                client_secret: clientSecret,
-                code,
-                redirect_uri: `${origin}/api/v1/auth/github/callback`
-            })
-        });
-        
-        const tokenData: any = await tokenRes.json();
-        const accessToken = tokenData.access_token;
+      const tokenRes = await fetch(
+        "https://github.com/login/oauth/access_token",
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code,
+            redirect_uri: `${origin}/api/v1/auth/github/callback`,
+          }),
+        },
+      );
 
-        if (!accessToken) {
-             return res.status(400).send('Failed to get access token');
-        }
+      const tokenData: any = await tokenRes.json();
+      const accessToken = tokenData.access_token;
 
-        const userRes = await fetch('https://api.github.com/user', {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'User-Agent': 'Local-Server'
-            }
-        });
-        const githubUser: any = await userRes.json();
-        
-        const emailRes = await fetch('https://api.github.com/user/emails', {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'User-Agent': 'Local-Server'
-            }
-        });
-        const emails: any[] = await emailRes.json();
-        const primaryEmail = emails.find(e => e.primary)?.email || emails[0]?.email;
-        
-        let user = usersState.find((u: any) => u.email === primaryEmail);
-        
-        if (!user) {
-            user = {
-                id: Date.now().toString(),
-                name: githubUser.name || githubUser.login,
-                email: primaryEmail,
-                password: 'oauth-user', 
-                role: 'User',
-                plan: 'Free',
-                rpdLimit: 50000,
-                joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-            } as any;
-            usersState.push(user as any);
-        }
+      if (!accessToken) {
+        return res.status(400).send("Failed to get access token");
+      }
 
-        res.send(`
+      const userRes = await fetch("https://api.github.com/user", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": "Local-Server",
+        },
+      });
+      const githubUser: any = await userRes.json();
+
+      const emailRes = await fetch("https://api.github.com/user/emails", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": "Local-Server",
+        },
+      });
+      const emails: any[] = await emailRes.json();
+      const primaryEmail =
+        emails.find((e) => e.primary)?.email || emails[0]?.email;
+
+      let user = usersState.find((u: any) => u.email === primaryEmail);
+
+      if (!user) {
+        user = {
+          id: Date.now().toString(),
+          name: githubUser.name || githubUser.login,
+          email: primaryEmail,
+          password: "oauth-user",
+          role: "User",
+          plan: "Free",
+          rpdLimit: 50000,
+          joinedDate: new Date().toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          }),
+        } as any;
+        usersState.push(user as any);
+      }
+
+      res.send(`
             <html>
                 <body>
                     <script>
@@ -248,84 +296,128 @@ async function startServer() {
             </html>
         `);
     } catch (e) {
-        res.status(500).send('OAuth callback error');
+      res.status(500).send("OAuth callback error");
     }
   });
 
   app.post("/api/v1/auth/admin", express.json(), (req, res) => {
     const { email, pin } = req.body;
-    let ADMIN_PIN = process.env.ADMIN_PIN || '123456';
-    let ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ceodedi@gmail.com';
+    let ADMIN_PIN = process.env.ADMIN_PIN || "123456";
+    let ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ceodedi@gmail.com";
 
     if (settingsState.adminPin) ADMIN_PIN = settingsState.adminPin;
     if (settingsState.adminEmail) ADMIN_EMAIL = settingsState.adminEmail;
 
     if (email === ADMIN_EMAIL && pin === ADMIN_PIN) {
-        let user = usersState.find((u: any) => u.email === email);
-        if (!user) {
-            user = {
-                id: Date.now().toString(),
-                name: "Administrator",
-                email: email,
-                password: 'admin-password',
-                role: 'Admin',
-                plan: 'Pro',
-                rpdLimit: 999999,
-                joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-            } as any;
-            usersState.push(user as any);
-        } else {
-            user.role = 'Admin';
-        }
-        res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, token: `admin_token_${user.id}` } });
+      let user = usersState.find((u: any) => u.email === email);
+      if (!user) {
+        user = {
+          id: Date.now().toString(),
+          name: "Administrator",
+          email: email,
+          password: "admin-password",
+          role: "Admin",
+          plan: "Pro",
+          rpdLimit: 999999,
+          joinedDate: new Date().toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          }),
+        } as any;
+        usersState.push(user as any);
+      } else {
+        user.role = "Admin";
+      }
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          token: `admin_token_${user.id}`,
+        },
+      });
     } else {
-        res.status(401).json({ error: "Email atau PIN tidak valid" });
+      res.status(401).json({ error: "Email atau PIN tidak valid" });
     }
   });
 
   app.post("/api/v1/auth/register", express.json(), (req, res) => {
     const { name, email, password } = req.body;
-    if (!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
+    if (!name || !email || !password)
+      return res.status(400).json({ error: "Missing fields" });
 
     if (usersState.find((u: any) => u.email === email)) {
-        return res.status(400).json({ error: "User already exists" });
+      return res.status(400).json({ error: "User already exists" });
     }
-    
+
     const newUser = {
-        id: Date.now().toString(),
-        name,
-        email,
-        password, // In a real app, hash this!
-        role: email === 'ceodedi@gmail.com' ? 'Admin' : 'User',
-        plan: 'Free',
-        rpdLimit: 50000,
-        joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      id: Date.now().toString(),
+      name,
+      email,
+      password, // In a real app, hash this!
+      role: email === "ceodedi@gmail.com" ? "Admin" : "User",
+      plan: "Free",
+      rpdLimit: 50000,
+      joinedDate: new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
     };
-    
+
     usersState.push(newUser);
-    res.json({ success: true, user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } });
+    res.json({
+      success: true,
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
   });
 
   app.post("/api/v1/auth/login", express.json(), (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Missing fields" });
+    if (!email || !password)
+      return res.status(400).json({ error: "Missing fields" });
 
-    const user = usersState.find((u: any) => u.email === email && (u as any).password === password);
-    
+    const user = usersState.find(
+      (u: any) => u.email === email && (u as any).password === password,
+    );
+
     if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
-    
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
   });
 
   app.get("/api/dashboard", (req, res) => {
-    res.json({ success: true, data: userQuotaState['1'] });
+    res.json({ success: true, data: userQuotaState["1"] });
   });
 
   app.get("/api/v1/profile", (req, res) => {
-    const user = usersState.find(u => u.id === '1') || usersState[0];
-    res.json({ success: true, data: { ...user, joinedDate: "October 15, 2023", nextPayment: "November 15, 2023" } });
+    const user = usersState.find((u) => u.id === "1") || usersState[0];
+    res.json({
+      success: true,
+      data: {
+        ...user,
+        joinedDate: "October 15, 2023",
+        nextPayment: "November 15, 2023",
+      },
+    });
   });
 
   app.get("/api/v1/apikeys", (req, res) => {
@@ -337,11 +429,14 @@ async function startServer() {
     if (!name) return res.status(400).json({ error: "Name is required" });
     const newKey = {
       id: Date.now().toString(),
-      userId: '1',
+      userId: "1",
       name,
-      key: 'sk-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-      createdDate: new Date().toISOString().split('T')[0],
-      lastUsed: 'Never'
+      key:
+        "sk-" +
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15),
+      createdDate: new Date().toISOString().split("T")[0],
+      lastUsed: "Never",
     };
     apiKeysState.unshift(newKey);
     res.json({ success: true, data: newKey });
@@ -349,25 +444,25 @@ async function startServer() {
 
   app.delete("/api/v1/apikeys/:id", (req, res) => {
     const id = req.params.id;
-    apiKeysState = apiKeysState.filter(k => k.id !== id);
+    apiKeysState = apiKeysState.filter((k) => k.id !== id);
     res.json({ success: true });
   });
 
   app.get("/api/v1/users", (req, res) => {
     res.json({ success: true, data: usersState });
   });
-  
+
   app.put("/api/v1/users/:id", express.json(), (req, res) => {
     const id = req.params.id;
     const { rpdLimit, role, plan } = req.body;
-    let user = usersState.find(u => u.id === id);
+    let user = usersState.find((u) => u.id === id);
     if (user) {
       if (rpdLimit !== undefined) user.rpdLimit = rpdLimit;
       if (role !== undefined) user.role = role;
       if (plan !== undefined) user.plan = plan;
-      
+
       if (userQuotaState[id]) {
-          userQuotaState[id].totalLimit = user.rpdLimit;
+        userQuotaState[id].totalLimit = user.rpdLimit;
       }
       res.json({ success: true, data: user });
     } else {
@@ -388,61 +483,71 @@ async function startServer() {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer sk-")) {
-          return res.status(401).json({ error: "Unauthorized: Invalid or missing API Key" });
+        return res
+          .status(401)
+          .json({ error: "Unauthorized: Invalid or missing API Key" });
       }
 
-      const token = authHeader.split(' ')[1];
-      const validKey = apiKeysState.find(k => k.key === token);
-      if(!validKey) {
+      const token = authHeader.split(" ")[1];
+      const validKey = apiKeysState.find((k) => k.key === token);
+      if (!validKey) {
         return res.status(401).json({ error: "Unauthorized: Key not found" });
       }
-      
+
       const userId = validKey.userId;
-      if(!userQuotaState[userId]) {
-         userQuotaState[userId] = { used: 0, totalLimit: 50000, history: [], logs: [] };
+      if (!userQuotaState[userId]) {
+        userQuotaState[userId] = {
+          used: 0,
+          totalLimit: 50000,
+          history: [],
+          logs: [],
+        };
       }
       const quota = userQuotaState[userId];
-      
-      if(settingsState.enforceApiKey && quota.used >= quota.totalLimit) {
-         return res.status(429).json({ error: "Rate limit exceeded" });
+
+      if (settingsState.enforceApiKey && quota.used >= quota.totalLimit) {
+        return res.status(429).json({ error: "Rate limit exceeded" });
       }
 
       const { messages, model, stream } = req.body;
-      
-      const response = await fetch(TARGET_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${API_KEY}`
+
+      const response = await fetch(
+        `${settingsState.targetBaseUrl}/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${settingsState.targetApiKey}`,
+          },
+          body: JSON.stringify({
+            model: model || "gc/gemini-3-flash-preview",
+            stream: !!stream,
+            messages: messages,
+          }),
         },
-        body: JSON.stringify({
-          model: model || "gc/gemini-3-flash-preview",
-          stream: !!stream,
-          messages: messages
-        })
-      });
+      );
 
       const responseData: any = await response.json();
-      
+
       const usedTokens = responseData.usage?.total_tokens || 100; // fallback if missing
       quota.used += usedTokens;
       quota.logs.unshift({
-         id: Date.now(),
-         action: 'Chat Completion',
-         model: model || "gc/gemini-3-flash-preview",
-         tokens: usedTokens,
-         timestamp: new Date().toISOString(),
-         status: response.ok ? 'success' : 'error'
+        id: Date.now(),
+        action: "Chat Completion",
+        model: model || "gc/gemini-3-flash-preview",
+        tokens: usedTokens,
+        timestamp: new Date().toISOString(),
+        status: response.ok ? "success" : "error",
       });
 
-      const today = new Date().toISOString().split('T')[0];
-      const todayHistory = quota.history.find((h:any) => h.date === today);
+      const today = new Date().toISOString().split("T")[0];
+      const todayHistory = quota.history.find((h: any) => h.date === today);
       if (todayHistory) {
-         todayHistory.tokens += usedTokens;
+        todayHistory.tokens += usedTokens;
       } else {
-         quota.history.push({ date: today, tokens: usedTokens });
+        quota.history.push({ date: today, tokens: usedTokens });
       }
-      
+
       validKey.lastUsed = new Date().toISOString();
 
       res.status(response.status).json(responseData);
@@ -451,7 +556,6 @@ async function startServer() {
       res.status(500).json({ error: "Internal Server Error proxying request" });
     }
   });
-
 
   // --- Vite Middleware (Development) ---
   if (process.env.NODE_ENV !== "production") {
@@ -462,10 +566,10 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // --- Static Serving (Production) ---
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 

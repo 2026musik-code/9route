@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Loader2, Code, Link2, KeyRound } from 'lucide-react';
+import { Send, Loader2, Code, Link2, KeyRound, ChevronDown } from 'lucide-react';
 
 export default function PlaygroundView({ refreshDashboard }: { refreshDashboard: () => void }) {
   const { t } = useTranslation();
@@ -12,9 +12,21 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] = useState<any[]>([]);
   const [selectedModel, setSelectedModel] = useState('gc/gemini-3-flash-preview');
-  
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1024);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -74,19 +86,49 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
       <div className="flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden min-h-[300px] lg:min-h-0">
         <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/50">
           <span className="font-bold text-slate-800 dark:text-white text-sm">Endpoint Setup</span>
-          <select 
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="text-[10px] font-mono font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-2 py-1 rounded uppercase outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
-          >
-            {models.length > 0 ? (
-              models.map(m => (
-                <option key={m.id} value={m.id}>{m.id}</option>
-              ))
-            ) : (
-              <option value={selectedModel}>{selectedModel}</option>
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg uppercase outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer border border-indigo-200 dark:border-indigo-800 transition-colors"
+            >
+              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+              {selectedModel}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-72 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-3 overflow-hidden">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  Select AI Model
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                  {models.length > 0 ? (
+                    models.map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedModel(m.id);
+                          setDropdownOpen(false);
+                        }}
+                        className={`flex items-start gap-2 p-2.5 rounded-lg border text-left transition-colors ${selectedModel === m.id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-transparent border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                      >
+                        <div className={`w-2 h-2 rounded-full mt-1 shrink-0 bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)] animate-pulse`}></div>
+                        <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 break-all leading-tight">{m.id}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <button
+                        className="flex items-start gap-2 p-2.5 rounded-lg border text-left bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 col-span-1 sm:col-span-2 shadow-sm"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <div className="w-2 h-2 rounded-full mt-1 shrink-0 bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]"></div>
+                        <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 break-all leading-tight">{selectedModel}</span>
+                      </button>
+                  )}
+                </div>
+              </div>
             )}
-          </select>
+          </div>
         </div>
         
         <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-800 space-y-4">

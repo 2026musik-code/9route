@@ -10,6 +10,7 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -66,7 +67,7 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
       const data = await res.json();
       if (data.success) {
         if (!isLogin) {
-          alert('Data telah berhasil terdaftar. Silakan login untuk melanjutkan.');
+          setSuccessMsg('Data telah berhasil terdaftar. Silakan login untuk melanjutkan.');
           setIsLogin(true);
           setPassword('');
         } else {
@@ -106,6 +107,23 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-slate-900 py-8 px-4 shadow sm:rounded-2xl sm:px-10 border border-slate-200 dark:border-slate-800">
           
+          {successMsg && (
+            <div className="mb-4 p-4 rounded-xl bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 flex items-start gap-3">
+              <div className="flex-1">
+                <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                  {successMsg}
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setSuccessMsg('')}
+                className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
+              >
+                &times;
+              </button>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
               <p className="text-sm text-red-600 dark:text-red-400 font-medium text-center">

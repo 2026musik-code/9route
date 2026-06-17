@@ -5,7 +5,7 @@ import { Send, Loader2, Code, Link2, KeyRound, ChevronDown } from 'lucide-react'
 export default function PlaygroundView({ refreshDashboard }: { refreshDashboard: () => void }) {
   const { t } = useTranslation();
   const [prompt, setPrompt] = useState('Halo! Jawab dengan singkat: apakah koneksi HTTPS domain baruku ini sudah berjalan sempurna?');
-  const [payloadMode, setPayloadMode] = useState<'chat' | 'raw'>('chat');
+  const [payloadMode, setPayloadMode] = useState<'chat' | 'image' | 'raw'>('chat');
   const [rawPayload, setRawPayload] = useState('{\n  "model": "gemini-1.5-flash",\n  "messages": [\n    { "role": "user", "content": "Halo!" }\n  ]\n}');
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,17 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
               temperature,
               max_tokens: maxTokens,
               messages: [{ role: 'user', content: prompt }]
+            })
+          : payloadMode === 'image'
+          ? JSON.stringify({
+              model: selectedModel,
+              prompt: prompt,
+              n: 1,
+              size: 'auto',
+              quality: 'auto',
+              background: 'auto',
+              image_detail: 'high',
+              output_format: 'png'
             })
           : rawPayload
       });
@@ -169,47 +180,50 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
               placeholder="sk-..."
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>Temperature</span>
-                <span className="text-slate-600 dark:text-slate-400">{temperature}</span>
-              </label>
-              <input 
-                type="range" 
-                min="0" max="2" step="0.1"
-                value={temperature}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full accent-indigo-600"
-              />
+          {payloadMode === 'chat' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Temperature</span>
+                  <span className="text-slate-600 dark:text-slate-400">{temperature}</span>
+                </label>
+                <input 
+                  type="range" 
+                  min="0" max="2" step="0.1"
+                  value={temperature}
+                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                  className="w-full accent-indigo-600"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Max Tokens</span>
+                  <span className="text-slate-600 dark:text-slate-400">{maxTokens}</span>
+                </label>
+                <input 
+                  type="number" 
+                  value={maxTokens}
+                  onChange={(e) => setMaxTokens(parseInt(e.target.value))}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 font-mono focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>Max Tokens</span>
-                <span className="text-slate-600 dark:text-slate-400">{maxTokens}</span>
-              </label>
-              <input 
-                type="number" 
-                value={maxTokens}
-                onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 font-mono focus:ring-2 focus:ring-indigo-500/20 outline-none"
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="p-3 md:p-4 flex-1 flex flex-col">
           <div className="flex flex-wrap items-center justify-between mb-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payload</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Playground Type</label>
             <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-              <button onClick={() => setPayloadMode('chat')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'chat' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Chat Format</button>
-              <button onClick={() => setPayloadMode('raw')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'raw' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Raw JSON</button>
+              <button onClick={() => { setPayloadMode('chat'); setEndpointUrl(window.location.origin + '/api/v1/chat/completions'); }} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'chat' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Chat</button>
+              <button onClick={() => { setPayloadMode('image'); setEndpointUrl(window.location.origin + '/api/v1/images/generations'); }} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'image' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Image</button>
+              <button onClick={() => setPayloadMode('raw')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${payloadMode === 'raw' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>JSON</button>
             </div>
           </div>
-          {payloadMode === 'chat' ? (
+          {payloadMode === 'chat' || payloadMode === 'image' ? (
             <textarea
               className="w-full h-40 lg:h-auto flex-1 p-3 md:p-4 bg-slate-50 dark:bg-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-slate-900 resize-none text-slate-800 dark:text-slate-200 transition-all font-mono text-sm border border-slate-100 dark:border-slate-700 outline-none"
-              placeholder={t('Type message')}
+              placeholder={payloadMode === 'chat' ? t('Type message') : t('Describe the image...')}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
@@ -225,7 +239,7 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
         <div className="p-3 md:p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
           <button
             onClick={handleSend}
-            disabled={loading || (payloadMode === 'chat' ? !prompt.trim() : !rawPayload.trim())}
+            disabled={loading || (payloadMode === 'chat' || payloadMode === 'image' ? !prompt.trim() : !rawPayload.trim())}
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -248,7 +262,26 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
           ) : error ? (
             <div className="text-red-400">{error}</div>
           ) : response ? (
-            <pre className="whitespace-pre-wrap">{response}</pre>
+            <div className="flex flex-col gap-4">
+              {(() => {
+                try {
+                  const data = JSON.parse(response);
+                  if (data && data.data && Array.isArray(data.data) && data.data[0]) {
+                    const img = data.data[0];
+                    if (img.url || img.b64_json) {
+                       const src = img.url || `data:image/png;base64,${img.b64_json}`;
+                       return (
+                         <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden self-start shadow-xl">
+                           <img src={src} className="max-w-full md:max-w-md block" alt="Generated artifact" referrerPolicy="no-referrer" />
+                         </div>
+                       );
+                    }
+                  }
+                } catch(e) {}
+                return null;
+              })()}
+              <pre className="whitespace-pre-wrap">{response}</pre>
+            </div>
           ) : (
             <div className="flex items-center text-center justify-center h-full text-slate-600 font-medium tracking-wide">
                No response yet. Submit a request to see the API output.

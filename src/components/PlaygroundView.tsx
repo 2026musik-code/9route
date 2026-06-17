@@ -83,8 +83,8 @@ export default function PlaygroundView({ refreshDashboard }: { refreshDashboard:
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[500px] lg:h-[calc(100vh-12rem)]">
       {/* Input Section */}
-      <div className="flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden min-h-[300px] lg:min-h-0">
-        <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/50">
+      <div className="flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm min-h-[300px] lg:min-h-0">
+        <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
           <span className="font-bold text-slate-800 dark:text-white text-sm">Endpoint Setup</span>
           <div className="relative w-full sm:w-auto" ref={dropdownRef}>
             <button

@@ -449,7 +449,11 @@ async function startServer() {
   });
 
   app.get("/api/v1/users", (req, res) => {
-    res.json({ success: true, data: usersState });
+    const usersWithQuota = usersState.map(u => ({
+      ...u,
+      usedTokens: userQuotaState[u.id]?.used || 0
+    }));
+    res.json({ success: true, data: usersWithQuota });
   });
 
   app.put("/api/v1/users/:id", express.json(), (req, res) => {
@@ -468,6 +472,13 @@ async function startServer() {
     } else {
       res.status(404).json({ error: "User not found" });
     }
+  });
+
+  app.delete("/api/v1/users/:id", (req, res) => {
+    const id = req.params.id;
+    usersState = usersState.filter((u) => u.id !== id);
+    delete userQuotaState[id]; // optional cleanup
+    res.json({ success: true });
   });
 
   app.get("/api/v1/settings", (req, res) => {

@@ -170,7 +170,13 @@ api.get("/v1/users", async (c) => {
       rpdLimit: 50000,
     },
   ]);
-  return c.json({ success: true, data: users });
+  
+  const usersWithQuota = await Promise.all(users.map(async (u: any) => {
+    const quota = await getKV(c, `quota_${u.id}`, { used: 0 });
+    return { ...u, usedTokens: quota.used || 0 };
+  }));
+
+  return c.json({ success: true, data: usersWithQuota });
 });
 api.put("/v1/users/:id", async (c) => {
   const id = c.req.param("id");
@@ -195,6 +201,13 @@ api.put("/v1/users/:id", async (c) => {
     await putKV(c, `quota_${id}`, quota);
   }
 
+  await putKV(c, "users", users);
+  return c.json({ success: true });
+});
+api.delete("/v1/users/:id", async (c) => {
+  const id = c.req.param("id");
+  let users = await getKV(c, "users", []);
+  users = users.filter((u: any) => u.id !== id);
   await putKV(c, "users", users);
   return c.json({ success: true });
 });

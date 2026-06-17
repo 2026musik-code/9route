@@ -114,6 +114,16 @@ export default function AdminView() {
     }
   };
 
+  const deleteUser = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await apiFetch(`/api/v1/users/${id}`, { method: "DELETE" });
+      setUsers(users.filter((u) => u.id !== id));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchEndpoints = async () => {
     try {
       const res = await apiFetch("/api/v1/endpoints");
@@ -446,6 +456,9 @@ export default function AdminView() {
                   <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-wider">
                     Plan
                   </th>
+                  <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-wider">
+                    Limit & Usage
+                  </th>
                   <th className="px-6 py-4 font-bold uppercase text-[10px] tracking-wider text-right">
                     Actions
                   </th>
@@ -455,7 +468,7 @@ export default function AdminView() {
                 {users.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-6 py-8 text-center text-slate-500 dark:text-slate-400"
                     >
                       No users found
@@ -493,9 +506,14 @@ export default function AdminView() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
-                          {u.rpdLimit || 50000} RPD
-                        </span>
+                        <div className="flex items-center gap-2">
+                           <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
+                             {u.usedTokens?.toLocaleString() || 0} / {u.rpdLimit || 50000} RPD
+                           </span>
+                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${((u.usedTokens || 0) / (u.rpdLimit || 50000)) > 0.8 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                             {Math.round(((u.usedTokens || 0) / (u.rpdLimit || 50000)) * 100)}%
+                           </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
@@ -508,7 +526,7 @@ export default function AdminView() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                          <button onClick={() => deleteUser(u.id)} className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

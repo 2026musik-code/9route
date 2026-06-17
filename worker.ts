@@ -518,17 +518,22 @@ api.all("/*", async (c, next) => {
     targetBaseUrl: "https://api.cloudflaremini.biz.id/v1",
   });
 
-  const eps = await getKV(c, "endpoints", [
-    { id: "ep-1", method: "POST", path: "/api/v1/chat/completions" },
-    { id: "ep-2", method: "POST", path: "/api/v1/images/generations" },
-  ]);
-
+  const eps = await getKV(c, "endpoints", []);
+  
   const reqPath = c.req.path;
   const reqMethod = c.req.method;
 
-  const endpointConfig = eps.find((e: any) => e.path === reqPath && e.method === reqMethod);
+  let endpointConfig = eps.find((e: any) => e.path === reqPath && e.method === reqMethod);
+  
+  // Fallback map for core endpoints if missing from KV
   if (!endpointConfig) {
-    return next(); // Not a proxied API endpoint
+    if (reqPath === "/api/v1/chat/completions" && reqMethod === "POST") {
+      endpointConfig = { id: "ep-1", description: "Chat Completion Proxy", path: reqPath, method: reqMethod };
+    } else if (reqPath === "/api/v1/images/generations" && reqMethod === "POST") {
+      endpointConfig = { id: "ep-2", description: "Image Generation Proxy", path: reqPath, method: reqMethod };
+    } else {
+      return next(); // Not a proxied API endpoint
+    }
   }
 
   try {

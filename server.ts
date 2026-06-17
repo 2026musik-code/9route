@@ -507,9 +507,15 @@ async function startServer() {
   // --- Dynamic API Proxy ---
   app.all("/api/v1/*", async (req, res, next) => {
     // Check if the route is defined in the endpoints configuration
-    const endpointConfig = endpointsCache.find((e) => e.path === req.path && e.method === req.method);
+    let endpointConfig = endpointsCache.find((e) => e.path === req.path && e.method === req.method);
     if (!endpointConfig) {
-      return next(); // Pass to the next handler if not a configured proxy endpoint
+      if (req.path === "/api/v1/chat/completions" && req.method === "POST") {
+        endpointConfig = { id: "ep-1", description: "Chat Completion Proxy", path: req.path, method: req.method };
+      } else if (req.path === "/api/v1/images/generations" && req.method === "POST") {
+        endpointConfig = { id: "ep-2", description: "Image Generation Proxy", path: req.path, method: req.method };
+      } else {
+        return next(); // Pass to the next handler if not a configured proxy endpoint
+      }
     }
 
     try {

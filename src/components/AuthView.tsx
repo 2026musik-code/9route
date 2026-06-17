@@ -65,7 +65,13 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
       
       const data = await res.json();
       if (data.success) {
-        onLogin(data.user);
+        if (!isLogin) {
+          alert('Data telah berhasil terdaftar. Silakan login untuk melanjutkan.');
+          setIsLogin(true);
+          setPassword('');
+        } else {
+          onLogin(data.user);
+        }
       } else {
         setErrorMsg(data.error || 'Authentication failed');
       }
@@ -99,6 +105,15 @@ export default function AuthView({ onLogin }: { onLogin: (user: any) => void }) 
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-slate-900 py-8 px-4 shadow sm:rounded-2xl sm:px-10 border border-slate-200 dark:border-slate-800">
+          
+          {errorMsg && (
+            <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium text-center">
+                {errorMsg}
+              </p>
+            </div>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {!isLogin && (
               <div>
